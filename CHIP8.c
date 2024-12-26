@@ -19,6 +19,10 @@ void (*Chip8Table[16])(Chip8 *chip8) = {
     timers // Timers, sound, and memory operations
 };
 
+void initialize(Chip8 *Chip8) {
+    srand(time(0));
+}
+
 void fetch(Chip8 *chip8) {
 	chip8->opcode = chip8->memory[chip8->pc] << 8 | chip8->memory[chip8->pc+1];
     // data is stored in an array where each address contains one byte, however each opcode is 2 bytes long
@@ -88,11 +92,10 @@ void opcode_ANNN(Chip8 *chip8) {
 }
 
 void opcode_BNNN(Chip8 *chip8) {
-    chip8->pc = chip8->V[0] + chip8->opcode & 0x0FFF;
+    chip8->pc = chip8->V[0] + (chip8->opcode & 0x0FFF);
 }
 
 void opcode_CXNN(Chip8 *chip8) {
-    srand(time(0));
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = (unsigned char)(rand() % (256)) & chip8->opcode & 0x00FF;
 }
 
