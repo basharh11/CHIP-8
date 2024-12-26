@@ -25,3 +25,6 @@ The Chip 8 instruction set has opcodes that allow the program to jump to a certa
 So anytime a jump is performed or a subroutine is called, the program counter will be stored in the stack before proceeding. The system has 16 levels of stack and in order to remember which level of the stack was used, we need a stack pointer.
 
 The Chip 8 has a HEX based keypad (0x0-0xF), an array can be used to store the current state of the key.
+
+Instead of using the classic switch case statement to execute a particular opcode, I will use an array of pointer functions.
+An array of pointer functions increases modularity and scalability and makes larger emulator projects down the line much easier to write. 
