@@ -1,1 +1,3 @@
-# Chip8
+# CHIP-8
+
+In development.

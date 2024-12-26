@@ -1,0 +1,27 @@
+When writing an emulator, its important to find as much information about the system we want to emulate.
+I will start by finding how much memory and registers are used in the system, what architecture it is using, and a technical document that describes its instructions.
+The Chip 8 description on wikipedia has all the details about its instructions.
+
+The Chip 8 has 35 opcodes which are all two bytes long. An unsigned short has the length of two bytes.
+The Chip 8 has 4096 bytes of memory. This can be emulated with an unsigned char array with 32 length where each element is one byte.
+The Chip 8 has 15 8-bit general purpose registers name V0, V1, up to VE. The 16th register is used for the 'carry flag'. Eight bits is one byte so we can use an unsigned char array with 16 length.
+There is an Index register I and a program counter (pc) which can have a value from 0x000 to 0xFFF.
+
+The systems memory map:
+    0x000-0x1FF - Chip 8 Interpreter (contains font set in emu)
+    0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
+    0x200-0xFFF - Program ROM and work RAM
+
+The graphics system:
+    The chip 8 has one instruction for drawing to the screen. Drawing is done in XOR mode and if a pixel is turned off as a result of the drawing, the VF register is set. This is used for collision detection.
+
+The graphics of a Chip 8 are a black and white screen with a total of 2048 pixels (64 x 32). This can easily be implemented using an array that holds the pixel state (1 or 0 - on or off). unsigned char 2D array works perfectly.
+
+There are two timer registers that count at 60 Hz, when set above 0 they will count down to 0. unsigned char is perfect for delay_timer and sound_timer.
+
+The system's buzzer sounds whenever the sound timer reaches zero.
+
+The Chip 8 instruction set has opcodes that allow the program to jump to a certain address or call a subroutine. A stack is needed for the interpreter. The stack is used to remember the current location before a jump is performed. 
+So anytime a jump is performed or a subroutine is called, the program counter will be stored in the stack before proceeding. The system has 16 levels of stack and in order to remember which level of the stack was used, we need a stack pointer.
+
+The Chip 8 has a HEX based keypad (0x0-0xF), an array can be used to store the current state of the key.
