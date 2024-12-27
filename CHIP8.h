@@ -5,6 +5,26 @@
 #include <stdlib.h>
 #include <time.h>
 
+// Fontset
+unsigned char chip8_fontset[80] = { 
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
 // Emulator state
 typedef struct {
     unsigned short opcode; // Current opcode
@@ -18,6 +38,7 @@ typedef struct {
     unsigned short stack[16]; // Stack for subroutine calls
     unsigned short sp; // Stack pointer
     unsigned char key[16]; // HEX keypad state
+    unsigned char drawFlag; // Draw condition
 } Chip8;
 
 // Core functions
@@ -25,13 +46,6 @@ void initialize(Chip8 *chip8);
 void cycle(Chip8 *chip8);
 void fetch(Chip8 *chip8);
 void execute(Chip8 *chip8);
-
-// Opcode handlers
-void system(Chip8 *chip8); // Handles 0x00XX opcodes
-void arithmetic(Chip8 *chip8); // Handles 0x8XYX opcodes
-void timers(Chip8 *chip8); // Handles 0xFXXX opcodes
-void keypad(Chip8 *chip8); // Handles 0xEXXX opcodes
-
 
 // Function pointer tables
 void (*Chip8MainTable[16])(Chip8 *chip8); // Main opcode groups (0x0 to 0xF)
@@ -44,6 +58,12 @@ void (*Chip8KeypadTable[256])(Chip8 *chip8); // Handles 0xEXXX keypad input
 void initializeChip8SystemTable();
 void initializeChip8TimersTable();
 void initializeChip8KeypadTable();
+
+// Opcode handlers
+void system(Chip8 *chip8); // Handles 0x00XX opcodes
+void arithmetic(Chip8 *chip8); // Handles 0x8XYX opcodes
+void timers(Chip8 *chip8); // Handles 0xFXXX opcodes
+void keypad(Chip8 *chip8); // Handles 0xEXXX opcodes
 
 // Opcodes
 void opcode_default();
