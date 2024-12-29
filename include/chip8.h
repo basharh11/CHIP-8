@@ -2,7 +2,6 @@
 #define CHIP8_H
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 
 // Fontset
@@ -42,10 +41,10 @@ typedef struct {
 } Chip8;
 
 // Core functions
-void initialize(Chip8 *chip8);
-void cycle(Chip8 *chip8);
+void init(Chip8 *chip8);
 void fetch(Chip8 *chip8);
 void execute(Chip8 *chip8);
+void cycle(Chip8 *chip8);
 
 // Function pointer tables
 void (*Chip8MainTable[16])(Chip8 *chip8); // Main opcode groups (0x0 to 0xF)
@@ -55,15 +54,15 @@ void (*Chip8TimersTable[256])(Chip8 *chip8); // Handles 0xFXXX timers/memory
 void (*Chip8KeypadTable[256])(Chip8 *chip8); // Handles 0xEXXX keypad input
 
 // Initialize
-void initializeChip8SystemTable();
-void initializeChip8TimersTable();
-void initializeChip8KeypadTable();
+void initializeSystemTable();
+void initializeTimersTable();
+void initializeKeypadTable();
 
 // Opcode handlers
-void system(Chip8 *chip8); // Handles 0x00XX opcodes
-void arithmetic(Chip8 *chip8); // Handles 0x8XYX opcodes
-void timers(Chip8 *chip8); // Handles 0xFXXX opcodes
-void keypad(Chip8 *chip8); // Handles 0xEXXX opcodes
+void systemHandler(Chip8 *chip8); // Handles 0x00XX opcodes
+void arithmeticHandler(Chip8 *chip8); // Handles 0x8XYX opcodes
+void timersHandler(Chip8 *chip8); // Handles 0xFXXX opcodes
+void keypadHandler(Chip8 *chip8); // Handles 0xEXXX opcodes
 
 // Opcodes
 void opcode_default();
