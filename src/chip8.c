@@ -1,103 +1,134 @@
 #include "chip8.h"
 
-void (*Chip8Table[16])(Chip8 *chip8) = { // initialize main table opcodes
-    systemHandler,
-    opcode_1NNN, // Jump to address NNN
-    opcode_2NNN, // Call subroutine at NNN
-    opcode_3XNN, // Skip next instruction if VX == NN
-    opcode_4XNN, // Skip next instruction if VX != NN
-    opcode_5XY0, // Skip next instruction if VX == VY
-    opcode_6XNN, // Set VX = NN
-    opcode_7XNN, // Add NN to VX
-    arithmeticHandler, // Arithmetic/logical operations
-    opcode_9XY0, // Skip next instruction if VX != VY
-    opcode_ANNN, // Set I = NNN
-    opcode_BNNN, // Jump to V0 + NNN
-    opcode_CXNN, // Set VX = rand() & NN
-    opcode_DXYN, // Draw sprite
-    keypadHandler, // Key operations
-    timersHandler // Timers, sound, and memory operations
+unsigned char chip8Fontset[80] = { 
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-void initializeSystemTable() { // initialize system table opcodes
-    unsigned char i;
-    for(i = 0; i < 255; i++)
-        Chip8SystemTable[i] = opcode_default;
-    Chip8SystemTable[0xE0] = opcode_00E0;
-    Chip8SystemTable[0xEE] = opcode_00EE;
-}
-
-void (*Chip8ArithmeticTable[16])(Chip8 *chip8) = { // initialize arithmetic table opcodes
-    opcode_8XY0,
-    opcode_8XY1,
-    opcode_8XY2,
-    opcode_8XY3,
-    opcode_8XY4,
-    opcode_8XY5,
-    opcode_8XY6,
-    opcode_8XY7,
-    opcode_default,
-    opcode_default,
-    opcode_default,
-    opcode_default,
-    opcode_default,
-    opcode_default,
-    opcode_8XYE,
-    opcode_default
+void (*chip8MainTable[16])(Chip8 *) = { // initialize main table opcodes
+    systemHandler, // display/stack operations
+    opcode1NNN, // jump to address NNN
+    opcode2NNN, // call subroutine at NNN
+    opcode3XNN, // skip next instruction if VX == NN
+    opcode4XNN, // skip next instruction if VX != NN
+    opcode5XY0, // skip next instruction if VX == VY
+    opcode6XNN, // set VX = NN
+    opcode7XNN, // add NN to VX
+    arithmeticHandler, // arithmetic/logical operations
+    opcode9XY0, // skip next instruction if VX != VY
+    opcodeANNN, // set I = NNN
+    opcodeBNNN, // jump to V0 + NNN
+    opcodeCXNN, // set VX = rand() & NN
+    opcodeDXYN, // draw sprite
+    keypadHandler, // keypad operations
+    timersHandler // timers, sound, and memory operations
 };
 
-void initializeKeypadTable() { // initialize Keypad table opcodes
-    unsigned char i;
-    for(i = 0; i < 255; i++)
-        Chip8KeypadTable[i] = opcode_default;
-    Chip8KeypadTable[0x9E] = opcode_EX9E;
-    Chip8KeypadTable[0xA1] = opcode_EXA1;
+void (*chip8SystemTable[256])(Chip8 *) = {NULL}; 
+
+void (*chip8ArithmeticTable[16])(Chip8 *chip8) = { // initialize arithmetic table opcodes
+    opcode8XY0, // set VX = VY
+    opcode8XY1, // set VX = VX OR VY
+    opcode8XY2, // set VX = VX AND VY
+    opcode8XY3, // set VX = VX XOR VY
+    opcode8XY4, // add VY to VX, set VF = carry
+    opcode8XY5, // subtract VY from VX, set VF = no carry
+    opcode8XY6, // shift VX right by 1, set VF = LSB of VX
+    opcode8XY7, // set VX = VY - VX, set VF = no carry
+    opcodeDefault, 
+    opcodeDefault, 
+    opcodeDefault, 
+    opcodeDefault, 
+    opcodeDefault, 
+    opcodeDefault, 
+    opcode8XYE, // shift VX left by 1, set VF = MSB of VX
+    opcodeDefault
+};
+
+void (*chip8KeypadTable[256])(Chip8 *) = {NULL};
+
+void (*chip8TimersTable[256])(Chip8 *) = {NULL}; 
+
+void initializeSystemTable() { // initialize table opcodes
+    unsigned short i;
+    for (i = 0; i < 256; i++) {
+        chip8SystemTable[i] = opcodeDefault;
+    }
+
+    chip8SystemTable[0xE0] = opcode00E0; // clear the display
+    chip8SystemTable[0xEE] = opcode00EE; // return from subroutine
 }
 
-void initializeTimersTable() { // initialize Timers table opcodes
-    unsigned char i;
-    for(i = 0; i < 255; i++)
-        Chip8TimersTable[i] = opcode_default;
-    Chip8TimersTable[0x07] = opcode_FX07;
-    Chip8TimersTable[0x0A] = opcode_FX0A;
-    Chip8TimersTable[0x15] = opcode_FX15;
-    Chip8TimersTable[0x18] = opcode_FX18;
-    Chip8TimersTable[0x1E] = opcode_FX1E;
-    Chip8TimersTable[0x29] = opcode_FX29;
-    Chip8TimersTable[0x33] = opcode_FX33;
-    Chip8TimersTable[0x55] = opcode_FX55;
-    Chip8TimersTable[0x65] = opcode_FX65;
+void initializeKeypadTable() { // initialize keypad table opcodes
+    unsigned short i;
+    for (i = 0; i < 256; i++) {
+        chip8KeypadTable[i] = opcodeDefault; 
+    }
+
+    chip8KeypadTable[0x9E] = opcodeEX9E; // skip the next instruction if the key stored in VX is pressed
+    chip8KeypadTable[0xA1] = opcodeEXA1; // skip the next instruction if the key stored in VX is not pressed
 }
 
-void init(Chip8 *chip8) {
-    srand(time(NULL));
+void initializeTimersTable() { // initialize timers table opcodes
+    unsigned short i;
+    for (i = 0; i < 256; i++) {
+        chip8TimersTable[i] = opcodeDefault; 
+    }
+
+    chip8TimersTable[0x07] = opcodeFX07; // set VX = delay timer
+    chip8TimersTable[0x0A] = opcodeFX0A; // wait for key press, then store in VX
+    chip8TimersTable[0x15] = opcodeFX15; // set delay timer = VX
+    chip8TimersTable[0x18] = opcodeFX18; // set sound timer = VX
+    chip8TimersTable[0x1E] = opcodeFX1E; // add VX to I
+    chip8TimersTable[0x29] = opcodeFX29; // set I = location of sprite for character in VX
+    chip8TimersTable[0x33] = opcodeFX33; // store binary-coded decimal of VX in memory[I], memory[I+1], and memory[I+2]
+    chip8TimersTable[0x55] = opcodeFX55; // store registers V0 through VX in memory starting at I
+    chip8TimersTable[0x65] = opcodeFX65; // read registers V0 through VX from memory starting at I
+}
+
+void init(Chip8 *chip8) { // initialize Chip8 struct contents
+    srand(time(NULL)); // seed random number generator
 
     unsigned short i;
     
-    chip8->pc = 0x200; // Program counter starts at 0x200
-	chip8->opcode = 0; // Reset current opcode	
-	chip8->I = 0; // Reset index register
-	chip8->sp = 0; // Reset stack pointer
+    chip8->pc = 0x200; // program counter starts at 0x200
+	chip8->opcode = 0; // initialize current opcode	
+	chip8->I = 0; // initialize index register
+	chip8->sp = 0; // initialize stack pointer
 
 	for(i = 0; i < 2048; i++)
-		chip8->gfx[i] = 0;
+		chip8->gfx[i] = 0; // initialize display
 
 	for(i = 0; i < 16; i++)
-		chip8->stack[i] = 0;
+		chip8->stack[i] = 0; // initialize stack
 
 	for(i = 0; i < 16; i++)
-		chip8->key[i] = chip8->V[i] = 0;
+		chip8->key[i] = chip8->V[i] = 0; // initialize keypad
 
 	for(i = 0; i < 4096; i++)
-		chip8->memory[i] = 0;
+		chip8->memory[i] = 0; // initialize memory
 					
 	for(i = 0; i < 80; i++)
-		chip8->memory[i] = chip8_fontset[i];		
+		chip8->memory[i] = chip8Fontset[i]; // load fontset onto memory	
 
-	chip8->delay_timer = 0;
-	chip8->sound_timer = 0;
+	chip8->delayTimer = 0;
+	chip8->soundTimer = 0;  // initialize timers
 
-	chip8->drawFlag = 1;
+	chip8->drawFlag = 1; // initialize draw flag
 }
 
 void fetch(Chip8 *chip8) {
@@ -115,41 +146,39 @@ void fetch(Chip8 *chip8) {
 
 void execute(Chip8 *chip8) { // index into main table
     fetch(chip8);
-    Chip8Table[(chip8->opcode & 0xF000) >> 12](chip8);
+    chip8MainTable[(chip8->opcode & 0xF000) >> 12](chip8);
 }
 
-void cycle(Chip8 *chip8) {
+void cycle(Chip8 *chip8) { 
     fetch(chip8);
     execute(chip8);
 
-    if(chip8->delay_timer > 0)
-        chip8->delay_timer--;
+    if(chip8->delayTimer > 0)
+        chip8->delayTimer--;
  
-    if(chip8->sound_timer > 0)
-        chip8->sound_timer--;
+    if(chip8->soundTimer > 0)
+        chip8->soundTimer--;
 }
 
 void systemHandler(Chip8 *chip8) { // index into system table
-    Chip8SystemTable[chip8->opcode & 0x00FF](chip8);
+    chip8SystemTable[chip8->opcode & 0x00FF](chip8);
 }
 
 void arithmeticHandler(Chip8 *chip8) { // index into arithmetic table
-    Chip8ArithmeticTable[chip8->opcode & 0x000F](chip8);
+    chip8ArithmeticTable[chip8->opcode & 0x000F](chip8);
 }
 
 void keypadHandler(Chip8 *chip8) { // index into timers table
-    Chip8KeypadTable[chip8->opcode & 0x00FF](chip8);
+    chip8KeypadTable[chip8->opcode & 0x00FF](chip8);
 }
 
 void timersHandler(Chip8 *chip8) { // index into timers table
-    Chip8TimersTable[chip8->opcode & 0x00FF](chip8);
+    chip8TimersTable[chip8->opcode & 0x00FF](chip8);
 }
 
-void opcode_default() {
-    // do nothing
-}
+void opcodeDefault() {}
 
-void opcode_00E0(Chip8 *chip8) {
+void opcode00E0(Chip8 *chip8) {
     unsigned short pixel;
     
     for(pixel = 0; pixel < 2048; pixel++) { // loop through entire display
@@ -157,61 +186,61 @@ void opcode_00E0(Chip8 *chip8) {
     }
 }
 
-void opcode_00EE(Chip8 *chip8) {
+void opcode00EE(Chip8 *chip8) {
     chip8->sp--;
     chip8->pc = chip8->stack[chip8->sp];
 }
 
-void opcode_1NNN(Chip8 *chip8) {
+void opcode1NNN(Chip8 *chip8) {
     chip8->pc = chip8->opcode & 0x0FFF;
 }
 
-void opcode_2NNN(Chip8 *chip8) {
+void opcode2NNN(Chip8 *chip8) {
     chip8->stack[chip8->sp] = chip8->pc;
     chip8->sp++;
     chip8->pc = chip8->opcode & 0x0FFF;
 }
 
-void opcode_3XNN(Chip8 *chip8) {
+void opcode3XNN(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] == (chip8->opcode & 0x00FF))
         chip8->pc += 2;
 }
 
-void opcode_4XNN(Chip8 *chip8) {
+void opcode4XNN(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] != (chip8->opcode & 0x00FF))
         chip8->pc += 2;
 }
 
-void opcode_5XY0(Chip8 *chip8) {
+void opcode5XY0(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] == chip8->V[(chip8->opcode & 0x00F0) >> 4])
         chip8->pc += 2;
 }
 
-void opcode_6XNN(Chip8 *chip8) {
+void opcode6XNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->opcode & 0x00FF;
 }
 
-void opcode_7XNN(Chip8 *chip8) {
+void opcode7XNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] += chip8->opcode & 0x00FF; 
 }
 
-void opcode_8XY0(Chip8 *chip8) {
+void opcode8XY0(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->V[(chip8->opcode & 0x00F0) >> 4]; // set
 }
 
-void opcode_8XY1(Chip8 *chip8) {
+void opcode8XY1(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] |= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise OR 
 }
 
-void opcode_8XY2(Chip8 *chip8) {
+void opcode8XY2(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] &= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise AND
 }
 
-void opcode_8XY3(Chip8 *chip8) {
+void opcode8XY3(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] ^= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise XOR 
 }
 
-void opcode_8XY4(Chip8 *chip8) {
+void opcode8XY4(Chip8 *chip8) {
     // checks if Vy is greater than the complement of Vx to determine if there will be a carry during addition
     if(chip8->V[(chip8->opcode & 0x00F0) >> 4] > (0xFF - chip8->V[(chip8->opcode & 0x0F00) >> 8])) { 
         chip8->V[0xF] = 1; // set carry register to HI
@@ -220,7 +249,7 @@ void opcode_8XY4(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] += chip8->V[(chip8->opcode & 0x00F0) >> 4];
 }
 
-void opcode_8XY5(Chip8 *chip8) {
+void opcode8XY5(Chip8 *chip8) {
     // checks if Vy is greater than Vx to determine if there will be a carry during subtraction
     if(chip8->V[(chip8->opcode & 0x00F0) >> 4] >= chip8->V[(chip8->opcode & 0x0F00) >> 8]) {
         chip8->V[0xF] = 1; // set carry register to HI
@@ -229,12 +258,12 @@ void opcode_8XY5(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] -= chip8->V[(chip8->opcode & 0x00F0) >> 4];
 }
 
-void opcode_8XY6(Chip8 *chip8) {
+void opcode8XY6(Chip8 *chip8) {
     chip8->V[0xF] = (chip8->V[(chip8->opcode & 0x0F00) >> 8] & 0x1); // extract the least significant bit using a bitwise AND and assign to carry register
     chip8->V[(chip8->opcode & 0x0F00) >> 8] >>= 1; 
 }
 
-void opcode_8XY7(Chip8 *chip8) {
+void opcode8XY7(Chip8 *chip8) {
     // checks if Vx is greater than Vy to determine if there will be a carry during subtraction
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] >= chip8->V[(chip8->opcode & 0x00F0) >> 4]) {
         chip8->V[0xF] = 1; // set carry register to HI
@@ -243,48 +272,48 @@ void opcode_8XY7(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->V[(chip8->opcode & 0x00F0) >> 4] - chip8->V[(chip8->opcode & 0x0F00) >> 8];
 }
 
-void opcode_8XYE(Chip8 *chip8) {
+void opcode8XYE(Chip8 *chip8) {
     chip8->V[0xF] = (chip8->V[(chip8->opcode & 0x0F00) << 8] & 0x80); // extract the most significant bit using a bitwise AND and assign to carry register
     chip8->V[(chip8->opcode & 0x0F00) >> 8] <<= 1;
 }
 
-void opcode_9XY0(Chip8 *chip8) {
+void opcode9XY0(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] != chip8->V[(chip8->opcode & 0x00F0) >> 4])
         chip8->pc += 2;
 }
 
-void opcode_ANNN(Chip8 *chip8) {
+void opcodeANNN(Chip8 *chip8) {
     chip8->I = chip8->opcode & 0x0FFF;
 }
 
-void opcode_BNNN(Chip8 *chip8) {
+void opcodeBNNN(Chip8 *chip8) {
     chip8->pc = chip8->V[0] + (chip8->opcode & 0x0FFF);
 }
 
-void opcode_CXNN(Chip8 *chip8) {
+void opcodeCXNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = (unsigned char)(rand() % (256)) & (chip8->opcode & 0x00FF);
 }
 
-void opcode_DXYN(Chip8 *chip8) {
+void opcodeDXYN(Chip8 *chip8) {
     unsigned short x = chip8->V[(chip8->opcode & 0x0F00) >> 8]; // X-coordinate from Vx
     unsigned short y = chip8->V[(chip8->opcode & 0x00F0) >> 4]; // Y-coordinate from Vy
-    unsigned short height = chip8->opcode & 0x000F; // Sprite height (N)
+    unsigned short height = chip8->opcode & 0x000F; // sprite height (N)
     unsigned short pixel, yLine, xLine;
 
-    chip8->V[0xF] = 0; // Reset collision flag
+    chip8->V[0xF] = 0; // reset collision flag
 
     for (yLine = 0; yLine < height; yLine++) {
-        pixel = chip8->memory[chip8->I + yLine]; // Fetch sprite data from memory
+        pixel = chip8->memory[chip8->I + yLine]; // fetch sprite data from memory
 
         for (xLine = 0; xLine < 8; xLine++) {
-            if ((pixel & (0x80 >> xLine)) != 0) { // Check if the sprite pixel is set
-                unsigned short xCoord = (x + xLine) % 64; // Wrap horizontally
-                unsigned short yCoord = (y + yLine) % 32; // Wrap vertically
+            if ((pixel & (0x80 >> xLine)) != 0) { // check if the sprite pixel is set
+                unsigned short xCoord = (x + xLine) % 64; // wrap horizontally
+                unsigned short yCoord = (y + yLine) % 32; // wrap vertically
 
-                unsigned short gfxIndex = xCoord + (yCoord * 64); // Calculate linear index for gfx
+                unsigned short gfxIndex = xCoord + (yCoord * 64); // calculate linear index for gfx
 
-                if (chip8->gfx[gfxIndex] == 1) { // Check for collision
-                    chip8->V[0xF] = 1; // Set collision flag
+                if (chip8->gfx[gfxIndex] == 1) { // check for collision
+                    chip8->V[0xF] = 1; // set collision flag
                 }
                
                 chip8->gfx[gfxIndex] ^= 1; // XOR the sprite pixel onto the screen
@@ -292,29 +321,29 @@ void opcode_DXYN(Chip8 *chip8) {
         }
     }
 
-    chip8->drawFlag = 1; // Signal the screen needs updating
-    chip8->pc += 2; // Advance the program counter
+    chip8->drawFlag = 1; // signal the screen needs updating
+    chip8->pc += 2; // advance the program counter
 }
 
-void opcode_EX9E(Chip8 *chip8) {
+void opcodeEX9E(Chip8 *chip8) {
     if(chip8->key[chip8->V[(chip8->opcode & 0x0F00) >> 8]] != 0)
         chip8->pc += 4;
     else
         chip8->pc += 2;
 }
 
-void opcode_EXA1(Chip8 *chip8) {
+void opcodeEXA1(Chip8 *chip8) {
     if(chip8->key[chip8->V[(chip8->opcode & 0x0F00) >> 8]] == 0)
         chip8->pc += 4;
     else
         chip8->pc += 2;
 }
 
-void opcode_FX07(Chip8 *chip8) {
-    chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->delay_timer;
+void opcodeFX07(Chip8 *chip8) {
+    chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->delayTimer;
 }
 
-void opcode_FX0A(Chip8 *chip8) {
+void opcodeFX0A(Chip8 *chip8) {
     unsigned char i;
 
     for (i = 0; i < 16; i++) {
@@ -327,39 +356,40 @@ void opcode_FX0A(Chip8 *chip8) {
     chip8->pc -= 2;
 }
 
-void opcode_FX15(Chip8 *chip8) {
-    chip8->delay_timer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
+void opcodeFX15(Chip8 *chip8) {
+    chip8->delayTimer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
 }
 
-void opcode_FX18(Chip8 *chip8) {
-    chip8->sound_timer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
+void opcodeFX18(Chip8 *chip8) {
+    chip8->soundTimer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
 }
 
-void opcode_FX1E(Chip8 *chip8) {
+void opcodeFX1E(Chip8 *chip8) {
     chip8->I += chip8->V[(chip8->opcode & 0x0F00) >> 8];
 }
 
-void opcode_FX29(Chip8 *chip8) {
+void opcodeFX29(Chip8 *chip8) {
     chip8->I = (chip8->V[(chip8->opcode & 0x0F00) >> 8] & 0xF)*5;
 }
 
-void opcode_FX33(Chip8 *chip8) {
+void opcodeFX33(Chip8 *chip8) {
     chip8->memory[chip8->I] = chip8->V[(chip8->opcode & 0x0F00) >> 8] / 100;
     chip8->memory[chip8->I + 1] = (chip8->V[(chip8->opcode & 0x0F00) >> 8] / 10) % 10;
     chip8->memory[chip8->I + 2] = (chip8->V[(chip8->opcode & 0x0F00) >> 8] % 100) % 10;
     chip8->pc += 2;
 }
 
-void opcode_FX55(Chip8 *chip8) {
+void opcodeFX55(Chip8 *chip8) {
     unsigned char i;
     for(i = 0; i <= ((chip8->opcode & 0x0F00) >> 8); i++) {
         chip8->memory[chip8->I + i] = chip8->V[i];
     }
 }
 
-void opcode_FX65(Chip8 *chip8) {
+void opcodeFX65(Chip8 *chip8) {
     unsigned char i;
     for(i = 0; i <= ((chip8->opcode & 0x0F00) >> 8); i++) {
         chip8->V[i] = chip8->memory[chip8->I + i];
     }
 }
+

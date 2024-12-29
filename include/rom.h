@@ -3,6 +3,6 @@
 
 #include "chip8.h"
 
-void renderGraphics(Chip8 *chip8);
+int loadROM(Chip8 *chip8, const char *filename);
 
 #endif
