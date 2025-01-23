@@ -129,6 +129,10 @@ void init(Chip8 *chip8) { // initialize Chip8 struct contents
 	chip8->soundTimer = 0;  // initialize timers
 
 	chip8->drawFlag = 1; // initialize draw flag
+
+    initializeKeypadTable(); 
+    initializeSystemTable();
+    initializeTimersTable(); // initialize all arrays of function pointers
 }
 
 void fetch(Chip8 *chip8) {
@@ -184,11 +188,16 @@ void opcode00E0(Chip8 *chip8) {
     for(pixel = 0; pixel < 2048; pixel++) { // loop through entire display
         chip8->gfx[pixel] = 0; // turn all pixels off
     }
+    
+    chip8->drawFlag = 1;
+
+    chip8->pc += 2;
 }
 
 void opcode00EE(Chip8 *chip8) {
     chip8->sp--;
     chip8->pc = chip8->stack[chip8->sp];
+    chip8->pc += 2;
 }
 
 void opcode1NNN(Chip8 *chip8) {
@@ -203,41 +212,53 @@ void opcode2NNN(Chip8 *chip8) {
 
 void opcode3XNN(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] == (chip8->opcode & 0x00FF))
+        chip8->pc += 4;
+    else
         chip8->pc += 2;
 }
 
 void opcode4XNN(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] != (chip8->opcode & 0x00FF))
+        chip8->pc += 4;
+    else
         chip8->pc += 2;
 }
 
 void opcode5XY0(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] == chip8->V[(chip8->opcode & 0x00F0) >> 4])
+        chip8->pc += 4;
+    else
         chip8->pc += 2;
 }
 
 void opcode6XNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->opcode & 0x00FF;
+    chip8->pc += 2;
 }
 
 void opcode7XNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] += chip8->opcode & 0x00FF; 
+    chip8->pc += 2;
 }
 
 void opcode8XY0(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->V[(chip8->opcode & 0x00F0) >> 4]; // set
+    chip8->pc += 2;
 }
 
 void opcode8XY1(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] |= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise OR 
+    chip8->pc += 2;
 }
 
 void opcode8XY2(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] &= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise AND
+    chip8->pc += 2;
 }
 
 void opcode8XY3(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] ^= chip8->V[(chip8->opcode & 0x00F0) >> 4]; // bitwise XOR 
+    chip8->pc += 2;
 }
 
 void opcode8XY4(Chip8 *chip8) {
@@ -247,6 +268,7 @@ void opcode8XY4(Chip8 *chip8) {
     } else
         chip8->V[0xF] = 0; // set carry register to LO
     chip8->V[(chip8->opcode & 0x0F00) >> 8] += chip8->V[(chip8->opcode & 0x00F0) >> 4];
+    chip8->pc += 2;
 }
 
 void opcode8XY5(Chip8 *chip8) {
@@ -256,11 +278,13 @@ void opcode8XY5(Chip8 *chip8) {
     } else
         chip8->V[0xF] = 0; // set carry register to LO
     chip8->V[(chip8->opcode & 0x0F00) >> 8] -= chip8->V[(chip8->opcode & 0x00F0) >> 4];
+    chip8->pc += 2;
 }
 
 void opcode8XY6(Chip8 *chip8) {
     chip8->V[0xF] = (chip8->V[(chip8->opcode & 0x0F00) >> 8] & 0x1); // extract the least significant bit using a bitwise AND and assign to carry register
     chip8->V[(chip8->opcode & 0x0F00) >> 8] >>= 1; 
+    chip8->pc += 2;
 }
 
 void opcode8XY7(Chip8 *chip8) {
@@ -270,20 +294,25 @@ void opcode8XY7(Chip8 *chip8) {
     } else
         chip8->V[0xF] = 0; // set carry register to LO
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->V[(chip8->opcode & 0x00F0) >> 4] - chip8->V[(chip8->opcode & 0x0F00) >> 8];
+    chip8->pc += 2;
 }
 
 void opcode8XYE(Chip8 *chip8) {
     chip8->V[0xF] = (chip8->V[(chip8->opcode & 0x0F00) << 8] & 0x80); // extract the most significant bit using a bitwise AND and assign to carry register
     chip8->V[(chip8->opcode & 0x0F00) >> 8] <<= 1;
+    chip8->pc += 2;
 }
 
 void opcode9XY0(Chip8 *chip8) {
     if(chip8->V[(chip8->opcode & 0x0F00) >> 8] != chip8->V[(chip8->opcode & 0x00F0) >> 4])
+        chip8->pc += 4;
+    else
         chip8->pc += 2;
 }
 
 void opcodeANNN(Chip8 *chip8) {
     chip8->I = chip8->opcode & 0x0FFF;
+    chip8->pc += 2;
 }
 
 void opcodeBNNN(Chip8 *chip8) {
@@ -292,37 +321,30 @@ void opcodeBNNN(Chip8 *chip8) {
 
 void opcodeCXNN(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = (unsigned char)(rand() % (256)) & (chip8->opcode & 0x00FF);
+    chip8->pc += 2;
 }
 
 void opcodeDXYN(Chip8 *chip8) {
-    unsigned short x = chip8->V[(chip8->opcode & 0x0F00) >> 8]; // X-coordinate from Vx
-    unsigned short y = chip8->V[(chip8->opcode & 0x00F0) >> 4]; // Y-coordinate from Vy
-    unsigned short height = chip8->opcode & 0x000F; // sprite height (N)
+    unsigned short x = chip8->V[(chip8->opcode & 0x0F00) >> 8];
+    unsigned short y = chip8->V[(chip8->opcode & 0x00F0) >> 4];
+    unsigned short height = chip8->opcode & 0x000F;
     unsigned short pixel, yLine, xLine;
 
-    chip8->V[0xF] = 0; // reset collision flag
-
+    chip8->V[0xF] = 0;
     for (yLine = 0; yLine < height; yLine++) {
-        pixel = chip8->memory[chip8->I + yLine]; // fetch sprite data from memory
-
-        for (xLine = 0; xLine < 8; xLine++) {
-            if ((pixel & (0x80 >> xLine)) != 0) { // check if the sprite pixel is set
-                unsigned short xCoord = (x + xLine) % 64; // wrap horizontally
-                unsigned short yCoord = (y + yLine) % 32; // wrap vertically
-
-                unsigned short gfxIndex = xCoord + (yCoord * 64); // calculate linear index for gfx
-
-                if (chip8->gfx[gfxIndex] == 1) { // check for collision
-                    chip8->V[0xF] = 1; // set collision flag
+        pixel = chip8->memory[chip8->I + yLine];
+        for(xLine = 0; xLine < 8; xLine++) {
+            if((pixel & (0x80 >> xLine)) != 0) {
+                if(chip8->gfx[(x + xLine + ((y + yLine) * 64))] == 1) {
+                    chip8->V[0xF] = 1;                                    
                 }
-               
-                chip8->gfx[gfxIndex] ^= 1; // XOR the sprite pixel onto the screen
+                chip8->gfx[x + xLine + ((y + yLine) * 64)] ^= 1;
             }
         }
-    }
+    }	
 
-    chip8->drawFlag = 1; // signal the screen needs updating
-    chip8->pc += 2; // advance the program counter
+    chip8->drawFlag = 1;	
+    chip8->pc += 2;
 }
 
 void opcodeEX9E(Chip8 *chip8) {
@@ -341,6 +363,7 @@ void opcodeEXA1(Chip8 *chip8) {
 
 void opcodeFX07(Chip8 *chip8) {
     chip8->V[(chip8->opcode & 0x0F00) >> 8] = chip8->delayTimer;
+    chip8->pc += 2;
 }
 
 void opcodeFX0A(Chip8 *chip8) {
@@ -358,18 +381,22 @@ void opcodeFX0A(Chip8 *chip8) {
 
 void opcodeFX15(Chip8 *chip8) {
     chip8->delayTimer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
+    chip8->pc += 2;
 }
 
 void opcodeFX18(Chip8 *chip8) {
     chip8->soundTimer = chip8->V[(chip8->opcode & 0x0F00) >> 8];
+    chip8->pc += 2;
 }
 
 void opcodeFX1E(Chip8 *chip8) {
     chip8->I += chip8->V[(chip8->opcode & 0x0F00) >> 8];
+    chip8->pc += 2;
 }
 
 void opcodeFX29(Chip8 *chip8) {
     chip8->I = (chip8->V[(chip8->opcode & 0x0F00) >> 8] & 0xF)*5;
+    chip8->pc += 2;
 }
 
 void opcodeFX33(Chip8 *chip8) {
@@ -384,6 +411,10 @@ void opcodeFX55(Chip8 *chip8) {
     for(i = 0; i <= ((chip8->opcode & 0x0F00) >> 8); i++) {
         chip8->memory[chip8->I + i] = chip8->V[i];
     }
+    
+    chip8->I += ((chip8->opcode & 0x0F00) >> 8) + 1;
+
+    chip8->pc += 2;
 }
 
 void opcodeFX65(Chip8 *chip8) {
@@ -391,5 +422,9 @@ void opcodeFX65(Chip8 *chip8) {
     for(i = 0; i <= ((chip8->opcode & 0x0F00) >> 8); i++) {
         chip8->V[i] = chip8->memory[chip8->I + i];
     }
+
+    chip8->I += ((chip8->opcode & 0x0F00) >> 8) + 1;
+
+    chip8->pc += 2;
 }
 

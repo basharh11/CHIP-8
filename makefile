@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude
+CFLAGS = -Wall -Wextra -Iinclude -g
 
-SRCS = src/main.c src/chip8.c src/rom.c src/graphics.c
+SRCS = src/main.c src/chip8.c
 OBJS = $(SRCS:.c=.o)
 OUTPUT = chip8
 
@@ -17,4 +17,7 @@ clean:
 	rm -f $(OBJS) $(OUTPUT)
 
 run: $(OUTPUT)
-	./$(OUTPUT) pong.rom
+	./$(OUTPUT) test/pong.rom
+
+debug: $(OUTPUT)
+	gdb --args ./$(OUTPUT) test/pong.rom
