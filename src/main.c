@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
             chip8.drawFlag = 0;    // Reset the draw flag
         }
 
-        usleep(16000); // ~16ms delay for 60Hz emulation
+        usleep(2000); // ~16ms delay for 60Hz emulation
     }
 
     return 0;

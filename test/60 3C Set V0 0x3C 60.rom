@@ -1,0 +1,6 @@
+60 04      ; V0 = 4 (X position)
+61 04      ; V1 = 4 (Y position)
+A0 00      ; I = 0x000 (font sprite for digit "0")
+D0 15      ; Draw sprite at (V0, V1), height = 5
+12 08      ; Jump to 0x208 (idle forever, no re-draw)
+

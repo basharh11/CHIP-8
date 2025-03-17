@@ -140,7 +140,6 @@ void fetch(Chip8 *chip8) {
     // data is stored in an array where each address contains one byte, however each opcode is 2 bytes long
     // we make room for both bytes by shifting the data stored in the memory at the location stored by the program counter left 8 times and use a bitwise OR to merge both bytes
     // each byte is 8 bits, so by shifting to the left 8 times we add 8 bits initialized to 0 where the second byte can be stored using the bitwise OR operator to merge the two
-	chip8->pc += 2;
 }
 
 // the bitwise shift operator will obtain a certain amount of bits that we can further extract using a bitwise AND, since F is always HI it will copy bits set to HI
